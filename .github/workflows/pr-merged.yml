@@ -1,0 +1,54 @@
+name: pr-merged
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  issues: write
+  pull-requests: read
+
+jobs:
+  mark:
+    if: github.event.pull_request.merged && contains(github.event.pull_request.labels.*.name, 'agent:pr')
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          BODY: ${{ github.event.pull_request.body }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          while read -r n; do
+            gh issue edit "$n" -R "$GITHUB_REPOSITORY" --remove-label agent:pr-open --add-label agent:merged || true
+            gh issue comment "$n" -R "$GITHUB_REPOSITORY" --body "修复已合并($PR_URL), 将随下一次日常部署上线." || true
+          done < <(grep -oiE '(close[sd]?|fix(e[sd])?|resolve[sd]?) #[0-9]+' <<<"$BODY" | grep -oE '[0-9]+' | sort -u)
+
+  conflicts:
+    if: github.event.pull_request.merged
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - id: app
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.FIXER_CLIENT_ID }}
+          private-key: ${{ secrets.FIXER_PRIVATE_KEY }}
+      - name: 其余 agent PR 与 main 冲突时转人工
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+        run: |
+          for pr in $(gh pr list -R "$GITHUB_REPOSITORY" --state open --label agent:pr --json number,labels \
+              --jq '.[] | select([.labels[].name] | index("agent:needs-human") | not) | .number'); do
+            state=UNKNOWN
+            for _ in 1 2 3 4 5 6; do
+              state=$(gh pr view "$pr" -R "$GITHUB_REPOSITORY" --json mergeable --jq .mergeable)
+              [ "$state" != "UNKNOWN" ] && break
+              sleep 10
+            done
+            if [ "$state" = "CONFLICTING" ]; then
+              gh pr merge "$pr" -R "$GITHUB_REPOSITORY" --disable-auto || true
+              gh pr edit "$pr" -R "$GITHUB_REPOSITORY" --add-label agent:needs-human
+              gh pr comment "$pr" -R "$GITHUB_REPOSITORY" --body "与 main 存在冲突, 已关闭自动合并并转人工. 可关闭本 PR 后给对应 issue 重新添加 \`agent:fix\`, 基于最新 main 重新修复."
+            fi
+          done
