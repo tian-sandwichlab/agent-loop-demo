@@ -10,6 +10,11 @@ describe("formatPrice", () => {
     expect(formatPrice(1999)).toBe("￥19.99");
   });
 
+  it("keeps two decimal places when the fen digit is 0", () => {
+    expect(formatPrice(1990)).toBe("￥19.90");
+    expect(formatPrice(1050)).toBe("￥10.50");
+  });
+
   it("puts the minus sign before the currency symbol", () => {
     expect(formatPrice(-1999)).toBe("-￥19.99");
   });
