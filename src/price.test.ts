@@ -5,4 +5,8 @@ describe("formatPrice", () => {
   it("formats whole yuan", () => {
     expect(formatPrice(1000)).toBe("¥10");
   });
+
+  it("formats fractional yuan", () => {
+    expect(formatPrice(1999)).toBe("¥19.99");
+  });
 });
