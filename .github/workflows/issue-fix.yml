@@ -76,6 +76,16 @@ jobs:
           mkdir -p .agent-context
           gh issue view "$N" -R "$GITHUB_REPOSITORY" --comments > .agent-context/issue.md
 
+      # CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1 要求 bubblewrap; action 只在设置 allowed_non_write_users 时自行安装
+      - name: 安装子进程隔离依赖
+        timeout-minutes: 5
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends bubblewrap socat
+          if [ -f /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+
       - id: claude
         timeout-minutes: 35
         uses: anthropics/claude-code-action@756cc22e19660d20e8cc9496b4f242475a7f7790 # v1.0.235
