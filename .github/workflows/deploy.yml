@@ -1,0 +1,157 @@
+name: deploy
+
+on:
+  schedule:
+    - cron: "0 18 * * *"
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 要部署的分支, tag 或 commit SHA; 回滚时填历史 SHA
+        default: main
+      force:
+        description: 即使与上次部署相同也重新部署
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-pages
+  queue: max
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      deployments: read
+    outputs:
+      sha: ${{ steps.p.outputs.sha }}
+      skip: ${{ steps.p.outputs.skip }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref || 'main' }}
+      - id: p
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FORCE: ${{ inputs.force || false }}
+        run: |
+          sha=$(git rev-parse HEAD)
+          last=""
+          for id_sha in $(gh api "repos/$GITHUB_REPOSITORY/deployments?environment=github-pages&per_page=20" --jq '.[] | "\(.id):\(.sha)"'); do
+            state=$(gh api "repos/$GITHUB_REPOSITORY/deployments/${id_sha%%:*}/statuses?per_page=1" --jq '.[0].state // ""')
+            if [ "$state" = "success" ]; then last=${id_sha#*:}; break; fi
+          done
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          if [ "$sha" = "$last" ] && [ "$FORCE" != "true" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "main 自上次成功部署($last)以来无变化, 跳过." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    needs: plan
+    if: needs.plan.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.plan.outputs.sha }}
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+      - run: pnpm build
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist
+
+  deploy:
+    needs: [plan, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.d.outputs.page_url }}
+    outputs:
+      url: ${{ steps.d.outputs.page_url }}
+    steps:
+      - id: d
+        uses: actions/deploy-pages@v5
+
+  verify:
+    needs: [plan, deploy]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - env:
+          URL: ${{ needs.deploy.outputs.url }}
+          SHA: ${{ needs.plan.outputs.sha }}
+        run: |
+          for i in $(seq 1 20); do
+            got=$(curl -fsS "${URL%/}/version.txt?t=$i" || true)
+            if [ "$got" = "$SHA" ]; then echo "线上版本已是 $SHA"; exit 0; fi
+            sleep 15
+          done
+          echo "::error::线上 version.txt 为 '$got', 期望 $SHA"
+          exit 1
+
+  notify:
+    needs: [plan, deploy, verify]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.plan.outputs.sha }}
+          fetch-depth: 0
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ needs.plan.outputs.sha }}
+          URL: ${{ needs.deploy.outputs.url }}
+        run: |
+          gh pr list -R "$GITHUB_REPOSITORY" --state merged --label agent:pr --limit 100 \
+            --json number,mergeCommit,body,labels \
+            --jq '.[] | select([.labels[].name] | index("deployed") | not) | "\(.number) \(.mergeCommit.oid)"' |
+          while read -r pr merge; do
+            git merge-base --is-ancestor "$merge" "$SHA" || continue
+            gh pr edit "$pr" -R "$GITHUB_REPOSITORY" --add-label deployed
+            body=$(gh pr view "$pr" -R "$GITHUB_REPOSITORY" --json body --jq .body)
+            while read -r n; do
+              gh issue edit "$n" -R "$GITHUB_REPOSITORY" --remove-label agent:merged --add-label deployed || true
+              gh issue comment "$n" -R "$GITHUB_REPOSITORY" --body "已随日常部署上线: $URL (版本 $SHA)" || true
+            done < <(grep -oiE '(close[sd]?|fix(e[sd])?|resolve[sd]?) #[0-9]+' <<<"$body" | grep -oE '[0-9]+' | sort -u)
+          done
+
+  alert:
+    needs: [plan, build, deploy, verify]
+    if: failure()
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      issues: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ needs.plan.outputs.sha }}
+        run: |
+          gh issue create -R "$GITHUB_REPOSITORY" --label ops:deploy-failed \
+            --title "日常部署失败: $SHA" \
+            --body "部署运行: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID
+          回滚: 在 Actions 页手动运行 deploy, ref 填上一次成功部署的 SHA, force 勾选."
