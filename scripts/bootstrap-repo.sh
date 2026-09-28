@@ -62,7 +62,7 @@ ruleset=$(cat <<'JSON'
   "enforcement": "active",
   "conditions": { "ref_name": { "include": ["~DEFAULT_BRANCH"], "exclude": [] } },
   "bypass_actors": [
-    { "actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "always" }
+    { "actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "pull_request" }
   ],
   "rules": [
     { "type": "deletion" },
