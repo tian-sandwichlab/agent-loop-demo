@@ -12,6 +12,8 @@ describe("formatPrice", () => {
 
   it("groups the yuan part with thousands separators", () => {
     expect(formatPrice(123456789)).toBe("¥1,234,567.89");
+    expect(formatPrice(12345678900)).toBe("¥123,456,789");
+    expect(formatPrice(-123456789)).toBe("-¥1,234,567.89");
   });
 
   it("puts the minus sign before the currency symbol", () => {
