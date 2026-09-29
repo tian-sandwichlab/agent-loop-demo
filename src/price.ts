@@ -1,4 +1,5 @@
 export function formatPrice(cents: number): string {
+  if (Number.isNaN(cents)) return "--";
   const rounded = Math.round(cents);
   const sign = rounded < 0 ? "-" : "";
   const amount = Math.abs(rounded);

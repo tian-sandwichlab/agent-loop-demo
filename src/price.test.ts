@@ -24,6 +24,10 @@ describe("formatPrice", () => {
     expect(formatPrice(-1999)).toBe("-￥19.99");
   });
 
+  it('returns "--" for NaN input', () => {
+    expect(formatPrice(NaN)).toBe("--");
+  });
+
   it("uses the full-width yuan sign", () => {
     expect(formatPrice(1999).charAt(0)).toBe("￥");
   });
