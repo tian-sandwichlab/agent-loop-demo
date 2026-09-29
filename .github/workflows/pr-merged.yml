@@ -38,9 +38,9 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app.outputs.token }}
         run: |
-          gh pr list -R "$GITHUB_REPOSITORY" --state open --label agent:pr --json number,labels,headRefName \
-              --jq '.[] | select([.labels[].name] | index("agent:needs-human") | not) | "\(.number) \(.headRefName)"' |
-          while read -r pr branch; do
+          gh pr list -R "$GITHUB_REPOSITORY" --state open --label agent:pr --json number,labels \
+              --jq '.[] | select([.labels[].name] | index("agent:needs-human") | not) | .number' |
+          while read -r pr; do
             state=UNKNOWN
             for _ in 1 2 3 4 5 6; do
               state=$(gh pr view "$pr" -R "$GITHUB_REPOSITORY" --json mergeable --jq .mergeable)
@@ -51,7 +51,9 @@ jobs:
               gh pr merge "$pr" -R "$GITHUB_REPOSITORY" --disable-auto || true
               gh pr edit "$pr" -R "$GITHUB_REPOSITORY" --add-label agent:needs-human
               gh pr comment "$pr" -R "$GITHUB_REPOSITORY" --body "与 main 存在冲突, 已关闭自动合并并转人工. 可关闭本 PR 后给对应 issue 重新添加 \`agent:fix\`, 基于最新 main 重新修复."
-              issue=${branch#agent/issue-}
-              gh issue edit "$issue" -R "$GITHUB_REPOSITORY" --remove-label agent:pr-open --add-label agent:needs-human || true
+              body=$(gh pr view "$pr" -R "$GITHUB_REPOSITORY" --json body --jq .body)
+              while read -r n; do
+                gh issue edit "$n" -R "$GITHUB_REPOSITORY" --remove-label agent:pr-open --add-label agent:needs-human || true
+              done < <(grep -oiE '(close[sd]?|fix(e[sd])?|resolve[sd]?) #[0-9]+' <<<"$body" | grep -oE '[0-9]+' | sort -u)
             fi
           done

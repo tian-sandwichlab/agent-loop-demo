@@ -42,6 +42,9 @@ agent:pr-open|5319e7|修复 PR 已创建
 agent:merged|6f42c1|修复已合并, 待部署
 agent:needs-human|d93f0b|自动流程中止, 需要人工
 agent:pr|bfdadc|由修复 agent 创建的 PR
+agent:evaluating|fbca04|正在评估(每日需求规划中)
+agent:developing|0e8a16|正在开发(需求已入选, 实施中)
+feature:deferred|cfd3d7|需求已评估, 暂缓实施
 deployed|0e8a16|已随部署上线
 type:bug|d73a4a|缺陷
 type:feature|a2eeef|新能力
