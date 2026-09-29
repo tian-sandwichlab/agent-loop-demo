@@ -74,7 +74,8 @@ jobs:
         run: |
           git switch -c "$BRANCH"
           mkdir -p .agent-context
-          gh issue view "$N" -R "$GITHUB_REPOSITORY" --comments > .agent-context/issue.md
+          # 非交互下 --comments 只输出评论, 正文需单独取
+          { gh issue view "$N" -R "$GITHUB_REPOSITORY"; gh issue view "$N" -R "$GITHUB_REPOSITORY" --comments; } > .agent-context/issue.md
 
       # CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1 要求 bubblewrap; action 只在设置 allowed_non_write_users 时自行安装
       - name: 安装子进程隔离依赖

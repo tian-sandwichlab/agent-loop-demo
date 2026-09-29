@@ -59,7 +59,8 @@ jobs:
           read -ra nums <<<"$candidates"
           for n in "${nums[@]}"; do
             gh issue edit "$n" -R "$GITHUB_REPOSITORY" --add-label agent:evaluating >/dev/null
-            { echo "## issue #$n"; gh issue view "$n" -R "$GITHUB_REPOSITORY" --comments; printf '\n\n---\n\n'; } >> .agent-context/features.md
+            # 非交互下 --comments 只输出评论, 正文需单独取
+            { echo "## issue #$n"; gh issue view "$n" -R "$GITHUB_REPOSITORY"; gh issue view "$n" -R "$GITHUB_REPOSITORY" --comments; printf '\n\n---\n\n'; } >> .agent-context/features.md
           done
 
       # == 规划 agent: 只读工具, 只持有只读 GITHUB_TOKEN, 结论只走结构化输出
