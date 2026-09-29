@@ -1,6 +1,7 @@
 export function formatPrice(cents: number): string {
   if (!Number.isFinite(cents)) return "--";
   const rounded = Math.round(cents);
+  if (rounded === 0) return "免费";
   const sign = rounded < 0 ? "-" : "";
   const amount = Math.abs(rounded);
   const yuan = Math.floor(amount / 100);

@@ -2,6 +2,19 @@ import { describe, expect, it } from "vitest";
 import { formatPrice } from "./price";
 
 describe("formatPrice", () => {
+  it('shows "免费" for zero price', () => {
+    expect(formatPrice(0)).toBe("免费");
+  });
+
+  it('shows "免费" for amounts that round to zero', () => {
+    expect(formatPrice(0.4)).toBe("免费");
+  });
+
+  it("keeps non-zero output unchanged", () => {
+    expect(formatPrice(1)).toBe("￥0.01");
+    expect(formatPrice(1000)).toBe("￥10");
+  });
+
   it("formats whole yuan", () => {
     expect(formatPrice(1000)).toBe("￥10");
   });
