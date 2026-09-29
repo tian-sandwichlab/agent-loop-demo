@@ -3,7 +3,35 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
     <title>agent-loop-demo</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+      }
+
+      body {
+        color: #1f2430;
+        background-color: #ffffff;
+      }
+
+      #app {
+        color: #1f2430;
+        background-color: #ffffff;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        body {
+          color: #e8eaf0;
+          background-color: #17181c;
+        }
+
+        #app {
+          color: #e8eaf0;
+          background-color: #17181c;
+        }
+      }
+    </style>
   </head>
   <body>
     <div id="app"></div>
