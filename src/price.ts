@@ -1,4 +1,5 @@
 export function formatPrice(cents: number): string {
+  if (Number.isNaN(cents)) return "--";
   const sign = cents < 0 ? "-" : "";
   const amount = Math.abs(cents);
   const yuan = Math.floor(amount / 100);

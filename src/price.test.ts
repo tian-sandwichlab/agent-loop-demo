@@ -22,4 +22,8 @@ describe("formatPrice", () => {
   it("uses the full-width yuan sign", () => {
     expect(formatPrice(1999).charAt(0)).toBe("￥");
   });
+
+  it("returns -- for NaN input", () => {
+    expect(formatPrice(NaN)).toBe("--");
+  });
 });
