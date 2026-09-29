@@ -28,6 +28,11 @@ describe("formatPrice", () => {
     expect(formatPrice(NaN)).toBe("--");
   });
 
+  it('returns "--" for non-finite input', () => {
+    expect(formatPrice(Infinity)).toBe("--");
+    expect(formatPrice(-Infinity)).toBe("--");
+  });
+
   it("uses the full-width yuan sign", () => {
     expect(formatPrice(1999).charAt(0)).toBe("￥");
   });
