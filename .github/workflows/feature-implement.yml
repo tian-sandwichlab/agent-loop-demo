@@ -114,7 +114,8 @@ jobs:
           base64 -d <<<"$PLAN" | jq . > .agent-context/plan.json
           read -ra nums <<<"$ISSUES"
           for n in "${nums[@]}"; do
-            gh issue view "$n" -R "$GITHUB_REPOSITORY" --comments >> .agent-context/issues.md
+            # 非交互下 --comments 只输出评论, 正文需单独取
+            { gh issue view "$n" -R "$GITHUB_REPOSITORY"; gh issue view "$n" -R "$GITHUB_REPOSITORY" --comments; } >> .agent-context/issues.md
             printf '\n\n---\n\n' >> .agent-context/issues.md
           done
 
@@ -141,6 +142,8 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ github.token }}
+          # 由 feature-plan 以 GITHUB_TOKEN 触发, 发起者为 github-actions[bot]
+          allowed_bots: github-actions
           prompt: |
             实现需求「${{ needs.precheck.outputs.title }}」, 涉及 issue: ${{ needs.precheck.outputs.issues }}.
             实施方案在 .agent-context/plan.json(字段: scope 范围, acceptance 验收标准, files 预计改动文件, tests 需要的测试, out_of_scope 不做的内容); issue 原文与评论在 .agent-context/issues.md.
