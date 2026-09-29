@@ -136,7 +136,7 @@ jobs:
             const autoFix = r.fixable && r.confidence >= 0.7;
             const reply = r.reply.replace(/@/g, '@​');
             const files = r.suspected_files.map(f => `\`${f}\``).join(', ') || '无';
-            let next = '无需自动修复.';
+            let next = r.type === 'feature' ? '将进入每日需求评估, 入选后自动实施.' : '无需自动修复.';
             if (autoFix && trusted) next = '已进入自动修复队列, 修复 PR 创建后会在此回帖.';
             if (autoFix && !trusted) next = '判定可自动修复; 提交者非仓库成员, 需维护者添加 `agent:fix` 标签后启动.';
             await github.rest.issues.createComment({
