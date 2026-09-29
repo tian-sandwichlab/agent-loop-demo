@@ -4,7 +4,7 @@ export function formatPrice(cents: number): string {
   if (rounded === 0) return "免费";
   const sign = rounded < 0 ? "-" : "";
   const amount = Math.abs(rounded);
-  const yuan = Math.floor(amount / 100);
+  const yuan = String(Math.floor(amount / 100)).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   const fen = amount % 100;
   return fen === 0 ? `${sign}￥${yuan}` : `${sign}￥${yuan}.${String(fen).padStart(2, "0")}`;
 }
