@@ -49,4 +49,34 @@ describe("formatPrice", () => {
   it("uses the full-width yuan sign", () => {
     expect(formatPrice(1999).charAt(0)).toBe("￥");
   });
+
+  it("groups the yuan part with thousand separators", () => {
+    expect(formatPrice(123456789)).toBe("￥1,234,567.89");
+  });
+
+  it("groups whole-yuan amounts without fen", () => {
+    expect(formatPrice(12345678900)).toBe("￥123,456,789");
+  });
+
+  it("keeps the fen part zero-padded and ungrouped", () => {
+    expect(formatPrice(100000001)).toBe("￥1,000,000.01");
+  });
+
+  it("keeps the minus sign before the symbol for large amounts", () => {
+    expect(formatPrice(-123456789)).toBe("-￥1,234,567.89");
+  });
+
+  it("leaves amounts under 1000 yuan unchanged", () => {
+    expect(formatPrice(1999)).toBe("￥19.99");
+    expect(formatPrice(1000)).toBe("￥10");
+    expect(formatPrice(99)).toBe("￥0.99");
+    expect(formatPrice(99900)).toBe("￥999");
+    expect(formatPrice(100000)).toBe("￥1,000");
+  });
+
+  it('returns "--" for non-finite large inputs', () => {
+    expect(formatPrice(NaN)).toBe("--");
+    expect(formatPrice(Infinity)).toBe("--");
+    expect(formatPrice(-Infinity)).toBe("--");
+  });
 });
