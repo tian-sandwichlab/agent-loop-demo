@@ -162,9 +162,11 @@ jobs:
           RESULT: ${{ steps.claude.outputs.structured_output }}
           TITLE: ${{ github.event.issue.title }}
         run: |
-          git -c user.name="${{ vars.FIXER_BOT }}" \
-              -c user.email="${{ vars.FIXER_BOT_ID }}+${{ vars.FIXER_BOT }}@users.noreply.github.com" \
-              commit -m "fix: ${TITLE} (#${N})"
+          ident=(-c user.name="${{ vars.FIXER_BOT }}" -c user.email="${{ vars.FIXER_BOT_ID }}+${{ vars.FIXER_BOT }}@users.noreply.github.com")
+          git "${ident[@]}" commit -m "fix: ${TITLE} (#${N})"
+          # 排队期间 main 可能已前进; 冲突的 PR 不会触发 pull_request 工作流, 所以推送前先对齐最新 main, rebase 失败即转人工
+          git fetch --quiet "https://github.com/${GITHUB_REPOSITORY}.git" main
+          git "${ident[@]}" rebase FETCH_HEAD
           git push --force "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:refs/heads/${BRANCH}"
           body=$(printf 'Closes #%s\n\n### 根因\n%s\n\n### 修复\n%s\n\n### 新增测试\n%s\n' \
             "$N" "$(jq -r .root_cause <<<"$RESULT")" "$(jq -r .summary <<<"$RESULT")" "$(jq -r .test_added <<<"$RESULT")")
